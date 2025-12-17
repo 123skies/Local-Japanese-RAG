@@ -16,12 +16,12 @@ def get_reranker_model(model_name='BAAI/bge-reranker-v2-m3'):
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             
             # fp16有効化により高速化とVRAM節約 (RTX 3060向け)
-            automodel_args = {"torch_dtype": torch.float16} if device == 'cuda' else {}
+            model_kwargs = {"torch_dtype": torch.float16} if device == 'cuda' else {}
             reranker_model = CrossEncoder(
                 model_name, 
                 max_length=512, 
                 device=device,
-                automodel_args=automodel_args
+                model_kwargs=model_kwargs
             )
             logger.info(f"リランキングモデルを正常にロードしました (デバイス: {device})。")
         except Exception as e:

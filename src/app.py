@@ -480,7 +480,7 @@ if not st.session_state.initialized:
     if st.session_state.engine is None:
         try:
             # configファイルのパスをプロジェクトルートからの相対パスで指定
-            config_path = os.path.join(os.path.dirname(__file__), '..', 'configs', 'config_full.toml')
+            config_path = os.path.join(os.path.dirname(__file__), '..', 'configs', 'config.toml')
             
             # コマンドライン引数の解析 (ワークスペースの上書き用)
             parser = argparse.ArgumentParser()

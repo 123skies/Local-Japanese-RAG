@@ -410,9 +410,9 @@ class ScholarScopeEngine:
             for term in doc_filter_terms:
                 safe_term = escape_sql(term.replace("-", ""))
                 if term.startswith('-') and len(term) > 1:
-                    conditions.append(f"source NOT LIKE '%{safe_term}%'")
+                    conditions.append(f"LOWER(source) NOT LIKE '%{safe_term}%'")
                 else:
-                    conditions.append(f"source LIKE '%{safe_term}%'")
+                    conditions.append(f"LOWER(source) LIKE '%{safe_term}%'")
 
         return " AND ".join(conditions) if conditions else None
 
