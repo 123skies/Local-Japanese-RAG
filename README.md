@@ -3,8 +3,7 @@
 **Japanese-First, High-Precision, Local RAG System.**
 完全ローカル環境で動作する、日本語文書に特化した高精度な文献調査・分析システムです。
 
-![UI Preview](https://placehold.co/800x400?text=App+Screenshot+Here)
-*(ここにアプリのスクリーンショットを貼るとベストです)*
+![ScholarScope UI Preview](assets/app_preview.png)
 
 ## 💡 コンセプト (Concept)
 
