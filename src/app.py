@@ -171,19 +171,6 @@ def reset_application_state():
 
     logger.info("ユーザー操作により条件と結果を初期化しました。")
 
-try:
-    tiktoken_encoder = tiktoken.encoding_for_model("gpt-3.5-turbo")
-except Exception as e:
-    logger.warning(f"tiktokenエンコーダーの初期化に失敗: {e}。トークンカウントは文字数ベースの概算になります。", exc_info=True)
-    tiktoken_encoder = None
-
-# --- ユーティリティ関数 (エンジンに移管したものは削除) ---
-def count_tokens(text):
-    if tiktoken_encoder:
-        return len(tiktoken_encoder.encode(text))
-    else:
-        return len(text) // 3
-
 def save_search_history(history_entry: dict):
     search_history_file = st.session_state.engine.search_history_path
     try:
