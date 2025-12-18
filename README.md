@@ -1,4 +1,4 @@
-# ScholarScope (Local-Japanese-RAG)
+# Local-Japanese-RAG
 
 **Japanese-First, High-Precision, Local RAG System.**
 完全ローカル環境で動作する、日本語文書に特化した高精度な文献調査・分析システムです。
