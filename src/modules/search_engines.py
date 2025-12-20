@@ -1,4 +1,4 @@
-# modules/search_engines.py
+# project_root/src/modules/search_engines.py
 import streamlit as st
 import os
 import pickle
@@ -12,6 +12,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 from sentence_transformers import SentenceTransformer, util
 import numpy as np
+import sudachidict_core
 import hashlib
 import logging
 import lancedb
@@ -28,7 +29,31 @@ CONTEXT_WINDOW_CHARS_BM25 = 200
 def get_sudachi_tokenizer_instance(dict_type="core"):
     try:
         logger_se.info(f"SudachiPy Tokenizer ({dict_type}) の初期化を開始します。")
-        tokenizer = Dictionary(dict_type=dict_type).create()
+        # ポータブル環境対策: sudachidict_coreのインストール先から辞書パスを動的に特定
+        dict_dir = os.path.dirname(sudachidict_core.__file__)
+        # 辞書ファイルの場所はバージョンにより直下または resources/ 以下の場合があるため両方探す
+        search_dirs = [dict_dir, os.path.join(dict_dir, "resources")]
+        possible_names = ["system.dic", "core.dic"]
+        dict_path = None
+        for d in search_dirs:
+            if dict_path: break
+            for name in possible_names:
+                p = os.path.join(d, name)
+                if os.path.exists(p):
+                    dict_path = p
+                    break
+        
+        # ファイルが見つかればパス指定、見つからなければデフォルト文字列指定で初期化
+        if dict_path:
+            # Windowsパスのバックスラッシュ問題を避けるため、正規化して渡す
+            import pathlib
+            safe_path = str(pathlib.Path(dict_path).resolve())
+            tokenizer = Dictionary(dict=safe_path).create()
+            logger_se.info(f"辞書ファイルをロードしました: {safe_path}")
+        else:
+            logger_se.warning(f"辞書ファイルが {dict_dir} 内に見つかりませんでした。デフォルト設定('core')で初期化を試みます。")
+            tokenizer = Dictionary(dict="core").create()
+            
         logger_se.info(f"SudachiPy Tokenizer ({dict_type}) の初期化成功。")
         return tokenizer
     except Exception as e:
@@ -429,7 +454,7 @@ def calculate_similarity_matrix(texts, model_instance):
         logger_se.warning(f"類似度行列の計算中にエラー: {e}", exc_info=True)
         return np.array([])
 
-def deduplicate_chunks(chunk_docs, similarity_threshold=0.90):
+def deduplicate_chunks(chunk_docs, similarity_threshold=0.90, model_instance=None):
     if not chunk_docs: return []
     is_tuple_list = all(isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], Document) for item in chunk_docs)
     actual_docs = [item[0] for item in chunk_docs] if is_tuple_list else chunk_docs
@@ -437,7 +462,8 @@ def deduplicate_chunks(chunk_docs, similarity_threshold=0.90):
     texts_to_compare = [doc.page_content for doc in actual_docs]
     if len(texts_to_compare) <= 1: return chunk_docs
 
-    sim_model = get_similarity_model_instance()
+    # 引数で渡されなかった場合はキャッシュから取得（後方互換性用）
+    sim_model = model_instance if model_instance else get_similarity_model_instance()
     if not sim_model:
         logger_se.warning("類似度計算モデル利用不可のため、重複排除をスキップします。")
         return chunk_docs

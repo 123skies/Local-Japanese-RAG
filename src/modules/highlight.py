@@ -1,4 +1,4 @@
-# modules/highlight.py
+# project_root/src/modules/highlight.py
 import streamlit as st
 import re
 from modules.search_engines import tokenize_text_sudachi_util # tokenize_text_sudachi_util を直接インポート

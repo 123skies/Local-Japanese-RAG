@@ -1,4 +1,4 @@
-# modules/reranker.py
+# project_root/src/modules/reranker.py
 import torch
 from sentence_transformers import CrossEncoder
 from langchain.schema import Document

@@ -1,4 +1,4 @@
-# engine.py
+# project_root/src/engine.py
 import os
 import json
 import logging
@@ -22,12 +22,23 @@ class ScholarScopeEngine:
 
         self.config = self._load_config(config_path)
 
+        # --- プロジェクトルートとパス解決ヘルパーの定義 ---
+        # config_path (src/../configs/config.toml) からプロジェクトルート (configsの親) を特定
+        self.project_root = Path(config_path).resolve().parent.parent
+
+        def _resolve_project_path(path_str):
+            """プロジェクトルート基準でパスを解決する内部ヘルパー"""
+            p = Path(path_str)
+            if p.is_absolute():
+                return p
+            return (self.project_root / p).resolve()
+
         # --- パス設定 ---
         if workspace_dir:
             self.workspace_dir = Path(workspace_dir).resolve()
             logger.info(f"ワークスペースディレクトリを引数から設定しました: {self.workspace_dir}")
         else:
-            self.workspace_dir = Path(self.config['workspace_directory']).resolve()
+            self.workspace_dir = _resolve_project_path(self.config['workspace_directory'])
             
         self.documents_dir = self.workspace_dir / self.config['paths']['documents_folder']
         self.app_data_dir = self.workspace_dir / self.config['paths']['app_data_folder']
@@ -40,8 +51,8 @@ class ScholarScopeEngine:
 
         # --- ログ・履歴・デバッグ出力先の分離 (ワークスペース外へ) ---
         # configで指定されたパスを使用。指定がなければデフォルト値(logs)を使用
-        self.system_log_dir = Path(self.config['paths'].get('system_log_directory', 'logs')).resolve()
-        self.search_history_path = Path(self.config['paths'].get('search_history_file', 'logs/search_history.jsonl')).resolve()
+        self.system_log_dir = _resolve_project_path(self.config['paths'].get('system_log_directory', 'logs'))
+        self.search_history_path = _resolve_project_path(self.config['paths'].get('search_history_file', 'logs/search_history.jsonl'))
         
         self.log_dir = self.system_log_dir # 互換性のためエイリアス
         self.log_file_path = self.system_log_dir / self.config['paths']['log_file']
@@ -55,7 +66,36 @@ class ScholarScopeEngine:
         # --- モデル・設定の読み込み ---
         self.deduplication_threshold = self.config['settings']['deduplication_threshold_for_prompt']
         self.ollama_model_name = self.config['models']['ollama_chat']
-        self.reranker_model_name = self.config['models']['reranker']
+        
+        # リランカーモデルのパス解決 (ローカルパスかHuggingFace IDかの判定)
+        raw_reranker_path = self.config['models']['reranker']
+        resolved_reranker_path = _resolve_project_path(raw_reranker_path)
+        if resolved_reranker_path.exists():
+            # ローカルにフォルダが存在する場合は、その絶対パスを使用
+            self.reranker_model_name = str(resolved_reranker_path)
+            logger.info(f"リランキングモデルをローカルパスとして設定: {self.reranker_model_name}")
+        else:
+            # 存在しない場合は設定値をそのまま使用 (HuggingFace Hubからのダウンロードなどを想定)
+            self.reranker_model_name = raw_reranker_path
+        
+        # 類似度計算モデル（SimCSE）のパス解決
+        # configに未定義の場合はデフォルトのHuggingFace IDを使用（後方互換）
+        default_hf_id = "pkshatech/simcse-ja-bert-base-clcmlp"
+        raw_sim_path = self.config['models'].get('similarity', default_hf_id)
+        resolved_sim_path = _resolve_project_path(raw_sim_path)
+
+        if resolved_sim_path.exists():
+            self.similarity_model_name = str(resolved_sim_path)
+            logger.info(f"類似度モデルをローカルパスとして設定: {self.similarity_model_name}")
+        else:
+            # ローカルに存在しない場合、もし設定値がデフォルトのローカルパス(ai_models/...)なら、
+            # ユーザーの配置忘れと判断してHFのIDにフォールバックする（ネット経由でDLさせる）
+            if "ai_models" in str(raw_sim_path):
+                logger.warning(f"指定されたローカルモデル '{resolved_sim_path}' が見つかりません。Hugging Face上のモデル '{default_hf_id}' を使用します。")
+                self.similarity_model_name = default_hf_id
+            else:
+                self.similarity_model_name = raw_sim_path
+            
         self.embedding_model_name = self.config['models']['embedding']
         self.embedding_batch_size = self.config['settings'].get('embedding_batch_size', 32)
 
@@ -103,7 +143,8 @@ class ScholarScopeEngine:
         self.date_standardizer = DateStandardizer()
 
         self.embedding_model = search_engines.get_embedding_model(self.embedding_model_name)
-        self.similarity_model = search_engines.get_similarity_model_instance()
+        # パス解決済みのモデル名を渡してインスタンス化
+        self.similarity_model = search_engines.get_similarity_model_instance(self.similarity_model_name)
 
         self.loaded_file_info_list = []
         self.all_loaded_documents = []
@@ -787,7 +828,12 @@ class ScholarScopeEngine:
                 temp_integrated_list.append(doc)
                 seen_identifiers.add(identifier)
 
-        final_deduplicated_docs = search_engines.deduplicate_chunks(temp_integrated_list, similarity_threshold=self.deduplication_threshold)
+        # ここで self.similarity_model を渡すことで、オフラインロードしたモデルが使われる
+        final_deduplicated_docs = search_engines.deduplicate_chunks(
+            temp_integrated_list, 
+            similarity_threshold=self.deduplication_threshold,
+            model_instance=self.similarity_model
+        )
 
         context_parts = []
         for i, doc_obj in enumerate(final_deduplicated_docs):

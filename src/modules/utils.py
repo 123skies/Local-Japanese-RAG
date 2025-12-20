@@ -1,4 +1,4 @@
-# modules/utils.py
+# project_root/src/modules/utils.py
 import logging
 
 logger = logging.getLogger('scholarscope_lite')

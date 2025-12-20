@@ -11,7 +11,7 @@ if hasattr(torch, 'classes'):
 
 # ▲▲▲▲▲ ここまで ▲▲▲▲▲
 
-# app.py
+# project_root/src/app.py
 import streamlit as st
 import os
 import time
