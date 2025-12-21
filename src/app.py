@@ -653,36 +653,24 @@ with left_column:
                 value=st.session_state.last_executed_semantic_query,
                 key="input_semantic_query",
                 height=150,
-                placeholder=st.session_state.engine.config.get('ui', {}).get('semantic_query_placeholder', "例: 明治時代の文学における西洋思想の影響について知りたい"),
-                help="質問・関心事を文章で入力すると、AIが意味の近さを解釈して関連箇所を探します。"
+                placeholder=st.session_state.engine.config.get('ui', {}).get('semantic_query_placeholder', "例: 明治20年頃の条約改正の動きについて知りたい"),
+                help="質問・関心事を自然な文章で入力してください。\n\n💡 **便利な機能**\n- **和暦/西暦の自動補完**: 「明治20年」と入力すると、内部で「明治20年（1887年）」のように変換され、どちらの表記でもヒットするようになります。"
             )
-            use_ai_optimization = st.checkbox(
+            use_ai_optimization = st.toggle(
                 "検索クエリの最適化",
                 value=True,
-                help="【ONの場合】AIが質問文を分析し、検索手法ごとに最適な形（例：ベクトル用に要約、リランク用に疑問文）に書き換えます。\n\n【OFFの場合】入力文をそのまま使用します（キーワード検索時の形態素解析は行われます）。独自のクエリを試したい場合に有効です。"
+                help="【ON】AIが質問の意図を解釈し、各検索エンジン（キーワード・ベクトル・リランク）に合わせて最適な形に書き換えます。曖昧な質問でもヒットしやすくなります。\n\n【OFF】入力文をそのまま使用します（キーワード検索用の形態素解析は行われます）。\n専門用語を厳密に検索したい場合や、AIによる意訳・要約で重要な単語が省略されてしまうのを防ぎたい場合は、OFFの方が良い結果が得られます。"
             )
             
             # 設定値を取得（表示用）
             std_count = st.session_state.engine.reranker_input_count
             deep_count = st.session_state.engine.reranker_input_count_deep
 
-            # ラジオボタンの初期選択位置を決定
-            mode_index = 1 # デフォルトは標準
-            if st.session_state.skip_rerank:
-                mode_index = 0
-            elif st.session_state.is_deep_search_mode:
-                mode_index = 2
-
-            search_mode_selected = st.radio(
-                "検索精度とリランキング",
-                options=["fast", "standard", "deep"],
-                index=mode_index,
-                format_func=lambda x: {
-                    "fast": "高速（リランクなし）",
-                    "standard": "標準（バランス重視）",
-                    "deep": "じっくり（徹底調査）"
-                }[x],
-                help=f"【高速】AIによる再評価を行いません。速度最優先です。\n\n【標準】検索結果の上位（{std_count*2}件）をAIが再評価します。速度と精度のバランスが良い設定です。\n\n【じっくり】検索範囲を広げて（{deep_count*2}件）AIが再評価します。時間はかかりますが、取りこぼしを防げます。",
+            # UI簡略化: リランキングのON/OFFのみにする (GPU有効化に伴いDeepでも高速なため)
+            is_rerank_active = st.toggle(
+                "関連度順ソート（AI利用）",
+                value=not st.session_state.skip_rerank,
+                help=f"【ON】検索候補の上位（最大{deep_count*2}件）について、AIが本文を読み込んで質問との関連性を判定・並べ替えを行います。より的確な結果が得られます。\n\n【OFF】キーワードの出現頻度や単純な類似度順に表示します。高速ですが、AIによる詳細な精査は行われません。"
             )
 
         search_submit_button = st.form_submit_button("検索実行", type="primary", disabled=st.session_state.is_searching)
@@ -703,11 +691,11 @@ with left_column:
         else:
             # ラジオボタンの選択値からフラグを設定
             skip_rerank_req = False
-            deep_search_req = False
-            if search_mode_selected == "fast":
+            # トグルがOFFならスキップ、ONならDeepモード(最大件数)で実行
+            if not is_rerank_active:
                 skip_rerank_req = True
-            elif search_mode_selected == "deep":
-                deep_search_req = True
+            # Deepモードを常に有効にする（件数はconfigで制御）
+            deep_search_req = True
 
             # 検索実行時に結果をクリアし、処理中フラグを立てる
             st.session_state.and_search_results = []

@@ -113,6 +113,7 @@ class ScholarScopeEngine:
         self.debug_include_query = self.config.get('debug', {}).get('include_query_in_filename', True)
 
         self.initially_expanded_results_count = self.config['settings']['initially_expanded_results_count']
+        self.rerank_batch_size = self.config['settings'].get('rerank_batch_size', 10)
 
         self.vector_chunk_size = self.config['settings']['chunking']['vector']['size']
         self.vector_chunk_overlap = self.config['settings']['chunking']['vector']['overlap']
@@ -603,7 +604,8 @@ class ScholarScopeEngine:
                         documents=docs_for_reranker,
                         reranker=self.reranker_model,
                         top_n=len(docs_for_reranker),
-                        progress_callback=rerank_progress_wrapper
+                        progress_callback=rerank_progress_wrapper,
+                        batch_size=self.rerank_batch_size
                     )
                     results["reranked"] = reranked_results
                     if callback: callback('rerank', 'done', "リランキング完了。関連順に並べ替えました。")

@@ -29,7 +29,7 @@ def get_reranker_model(model_name='BAAI/bge-reranker-v2-m3'):
             reranker_model = None # ロード失敗を明示
     return reranker_model
 
-def rerank_documents(query: str, documents: list[Document], reranker, top_n=50, progress_callback=None, batch_size=1) -> list[tuple[Document, float]]:
+def rerank_documents(query: str, documents: list[Document], reranker, top_n=50, progress_callback=None, batch_size=10) -> list[tuple[Document, float]]:
     if not documents or not query or not reranker:
         return []
     
