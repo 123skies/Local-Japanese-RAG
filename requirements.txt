@@ -14,7 +14,9 @@ sudachidict-core
 SudachiPy==0.6.10
 tiktoken==0.9.0
 toml==0.10.2
-torch==2.7.0
+torch==2.6.0
 langchain-ollama==0.3.8
 lancedb==0.25.1
 pyarrow==20.0.0
+unidic-lite
+mecab-python3
