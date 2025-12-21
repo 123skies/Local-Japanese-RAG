@@ -487,10 +487,14 @@ class ScholarScopeEngine:
             logger.info("AND検索フローを実行します。")
             if self.document_chunks_for_bm25:
                 # 1. まず件数制限なしで全ての結果を取得
+                # フィルタがある場合は全件取得してから絞り込む必要があるため、top_nを解除する
+                has_filter = bool(exclude_keywords or doc_name_filter)
+                target_top_n = None if has_filter else self.and_search_retrieval_count
+
                 all_and_results = search_engines.search_and_完全一致(
                     must_keywords, self.document_chunks_for_bm25,
                     case_sensitive=False, context_window_chars=self.and_search_context_window_chars,
-                    top_n=self.and_search_retrieval_count # search_engines側で+1件取得する
+                    top_n=target_top_n
                 )
                 # 2. 次にフィルタリングを実行
                 if callback: callback('filter', 'running', "条件フィルタリング中...")

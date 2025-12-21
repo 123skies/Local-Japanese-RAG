@@ -266,7 +266,7 @@ def search_and_完全一致(query_text, target_chunks, case_sensitive=False, con
             matching_excerpts.append(excerpt_doc)
             
             # 件数上限の判定用にもう1件だけ余分に取得してからbreakする
-            if len(matching_excerpts) > top_n:
+            if top_n is not None and len(matching_excerpts) > top_n:
                 break
     logger_se.info(f"AND検索完了。結果数: {len(matching_excerpts)}")
     return matching_excerpts
